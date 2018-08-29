@@ -22,6 +22,8 @@ const (
 	BOLTDB Backend = "boltdb"
 	// REDIS backend
 	REDIS Backend = "redis"
+	// REDIS CLUSTER backend
+	REDIS_CLUSTER Backend = "rediscluster"
 )
 
 var (

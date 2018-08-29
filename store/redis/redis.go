@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/abronan/valkeyrie"
 	"github.com/abronan/valkeyrie/store"
@@ -31,6 +32,7 @@ var (
 // Register registers Redis to valkeyrie
 func Register() {
 	valkeyrie.AddStore(store.REDIS, New)
+	valkeyrie.AddStore(store.REDIS_CLUSTER, NewCluster)
 }
 
 // New creates a new Redis client given a list
@@ -49,8 +51,18 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 	return newRedis(endpoints, password)
 }
 
+func NewCluster(endpoints []string, options *store.Config) (store.Store, error) {
+	var password string
+	if options != nil && options.TLS != nil {
+		return nil, ErrTLSUnsupported
+	}
+	if options != nil && options.Password != "" {
+		password = options.Password
+	}
+	return newRedisCluster(endpoints, password)
+}
+
 func newRedis(endpoints []string, password string) (*Redis, error) {
-	// TODO: use *redis.ClusterClient if we support miltiple endpoints
 	client := redis.NewClient(&redis.Options{
 		Addr:         endpoints[0],
 		DialTimeout:  5 * time.Second,
@@ -61,6 +73,22 @@ func newRedis(endpoints []string, password string) (*Redis, error) {
 
 	return &Redis{
 		client: client,
+		script: redis.NewScript(luaScript()),
+		codec:  defaultCodec{},
+	}, nil
+}
+
+func newRedisCluster(endpoints []string, password string) (*Redis, error) {
+	client := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:        endpoints,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		Password:     password,
+	})
+
+	return &Redis{
+		client: (*redis.Client)(unsafe.Pointer(client)),
 		script: redis.NewScript(luaScript()),
 		codec:  defaultCodec{},
 	}, nil

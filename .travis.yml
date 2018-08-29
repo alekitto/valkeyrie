@@ -5,6 +5,9 @@ go:
 
 sudo: true
 
+services:
+  - docker
+
 before_install:
   # Symlink below is needed for Travis CI to work correctly on personal forks of valkeyrie
   - ln -s $HOME/gopath/src/github.com/${TRAVIS_REPO_SLUG///valkeyrie/} $HOME/gopath/src/github.com/abronan
@@ -20,6 +23,11 @@ before_script:
   - script/travis_etcd.sh 3.2.9
   - script/travis_zk.sh 3.4.10
   - script/travis_redis.sh 4.0.2
+
+  - |
+    # Start redis cluster
+    docker pull grokzen/redis-cluster:4.0.8
+    docker run -d -p 7000:7000 -p 7001:7001 -p 7002:7002 -p 7003:7003 -p 7004:7004 -p 7005:7005 --name redis-cluster grokzen/redis-cluster:4.0.8
 
 script:
   - ./consul agent -server -bootstrap -advertise=127.0.0.1 -data-dir /tmp/consul -config-file=./config.json 1>/dev/null &
