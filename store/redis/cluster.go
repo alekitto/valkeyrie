@@ -318,20 +318,23 @@ func (r *Cluster) keys(regex string) ([]string, error) {
 	var allKeys []string
 
 	err := r.client.ForEachMaster(func(client *redis.Client) error {
+		var nodeKeys []string
 		keys, nextCursor, err := r.client.Scan(startCursor, regex, defaultCount).Result()
 		if err != nil {
 			return err
 		}
-		allKeys = append(allKeys, keys...)
+
+		nodeKeys = append(nodeKeys, keys...)
 		for nextCursor != endCursor {
 			keys, nextCursor, err = r.client.Scan(nextCursor, regex, defaultCount).Result()
 			if err != nil {
 				return err
 			}
 
-			allKeys = append(allKeys, keys...)
+			nodeKeys = append(nodeKeys, keys...)
 		}
 
+		allKeys = append(allKeys, nodeKeys...)
 		return nil
 	})
 
