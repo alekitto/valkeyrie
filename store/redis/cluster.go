@@ -298,7 +298,6 @@ func (r *Cluster) List(directory string, opts *store.ReadOptions) ([]*store.KVPa
 }
 
 func (r *Cluster) list(directory string) ([]*store.KVPair, error) {
-
 	var allKeys []string
 	regex := scanRegex(directory) // for all keyed with $directory
 	allKeys, err := r.keys(regex)
@@ -318,22 +317,32 @@ func (r *Cluster) keys(regex string) ([]string, error) {
 
 	var allKeys []string
 
-	keys, nextCursor, err := r.client.Scan(startCursor, regex, defaultCount).Result()
-	if err != nil {
-		return nil, err
-	}
-	allKeys = append(allKeys, keys...)
-	for nextCursor != endCursor {
-		keys, nextCursor, err = r.client.Scan(nextCursor, regex, defaultCount).Result()
+	err := r.client.ForEachMaster(func(client *redis.Client) error {
+		keys, nextCursor, err := r.client.Scan(startCursor, regex, defaultCount).Result()
 		if err != nil {
-			return nil, err
+			return err
+		}
+		allKeys = append(allKeys, keys...)
+		for nextCursor != endCursor {
+			keys, nextCursor, err = r.client.Scan(nextCursor, regex, defaultCount).Result()
+			if err != nil {
+				return err
+			}
+
+			allKeys = append(allKeys, keys...)
 		}
 
-		allKeys = append(allKeys, keys...)
+		return nil
+	})
+
+	if nil != err {
+		return nil, err
 	}
+
 	if len(allKeys) == 0 {
 		return nil, store.ErrKeyNotFound
 	}
+
 	return allKeys, nil
 }
 
