@@ -3,6 +3,7 @@ package redis
 import (
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abronan/valkeyrie/store"
@@ -316,6 +317,7 @@ func (r *Cluster) keys(regex string) ([]string, error) {
 	)
 
 	var allKeys []string
+	mux := &sync.Mutex{}
 
 	err := r.client.ForEachMaster(func(client *redis.Client) error {
 		var nodeKeys []string
@@ -334,7 +336,10 @@ func (r *Cluster) keys(regex string) ([]string, error) {
 			nodeKeys = append(nodeKeys, keys...)
 		}
 
+		mux.Lock()
 		allKeys = append(allKeys, nodeKeys...)
+		mux.Unlock()
+
 		return nil
 	})
 
@@ -351,30 +356,31 @@ func (r *Cluster) keys(regex string) ([]string, error) {
 
 // mget values given their keys
 func (r *Cluster) mget(directory string, keys ...string) ([]*store.KVPair, error) {
-	replies, err := r.client.MGet(keys...).Result()
+	pipe := r.client.Pipeline()
+
+	for _, key := range keys {
+		pipe.Get(key)
+	}
+
+	cmds, err := pipe.Exec()
 	if err != nil {
 		return nil, err
 	}
 
 	pairs := []*store.KVPair{}
-	for _, reply := range replies {
-		var sreply string
-		if _, ok := reply.(string); ok {
-			sreply = reply.(string)
-		}
-		if sreply == "" {
-			// empty reply
-			continue
-		}
-
+	for i := range keys {
+		value := cmds[i].(*redis.StringCmd).Val()
 		newkv := &store.KVPair{}
-		if err := r.codec.decode(sreply, newkv); err != nil {
+
+		if err := r.codec.decode(value, newkv); err != nil {
 			return nil, err
 		}
+
 		if normalize(newkv.Key) != directory {
 			pairs = append(pairs, newkv)
 		}
 	}
+
 	return pairs, nil
 }
 
