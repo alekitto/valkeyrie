@@ -51,6 +51,7 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 	return newRedis(endpoints, password)
 }
 
+// Creates a new RedisCluster client
 func NewCluster(endpoints []string, options *store.Config) (store.Store, error) {
 	var password string
 	if options != nil && options.TLS != nil {
@@ -88,7 +89,7 @@ func newRedisCluster(endpoints []string, password string) (*Redis, error) {
 	})
 
 	return &Redis{
-		client: (*redis.Client)(unsafe.Pointer(client)),
+		client: (*redis.Client)(unsafe.Pointer(&client)),
 		script: redis.NewScript(luaScript()),
 		codec:  defaultCodec{},
 	}, nil
