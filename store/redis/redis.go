@@ -7,7 +7,6 @@ import (
 	"log"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/abronan/valkeyrie"
 	"github.com/abronan/valkeyrie/store"
@@ -51,7 +50,7 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 	return newRedis(endpoints, password)
 }
 
-// Creates a new RedisCluster client
+// NewCluster creates a new RedisCluster client
 func NewCluster(endpoints []string, options *store.Config) (store.Store, error) {
 	var password string
 	if options != nil && options.TLS != nil {
@@ -79,7 +78,7 @@ func newRedis(endpoints []string, password string) (*Redis, error) {
 	}, nil
 }
 
-func newRedisCluster(endpoints []string, password string) (*Redis, error) {
+func newRedisCluster(endpoints []string, password string) (*RedisCluster, error) {
 	client := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs:        endpoints,
 		DialTimeout:  5 * time.Second,
@@ -88,8 +87,8 @@ func newRedisCluster(endpoints []string, password string) (*Redis, error) {
 		Password:     password,
 	})
 
-	return &Redis{
-		client: (*redis.Client)(unsafe.Pointer(&client)),
+	return &RedisCluster{
+		client: client,
 		script: redis.NewScript(luaScript()),
 		codec:  defaultCodec{},
 	}, nil
@@ -109,6 +108,13 @@ func (c defaultCodec) decode(b string, kv *store.KVPair) error {
 // Redis implements valkeyrie.Store interface with redis backend
 type Redis struct {
 	client *redis.Client
+	script *redis.Script
+	codec  defaultCodec
+}
+
+type RedisCluster struct {
+	Redis
+	client *redis.ClusterClient
 	script *redis.Script
 	codec  defaultCodec
 }
