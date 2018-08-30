@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"github.com/go-redis/redis"
 	"testing"
 
 	"github.com/abronan/valkeyrie"
@@ -35,7 +36,11 @@ func makeRedisClusterClient(t *testing.T) store.Store {
 
 	// NOTE: please turn on redis's notification
 	// before you using watch/watchtree/lock related features
-	kv.client.ConfigSet("notify-keyspace-events", "KA")
+	kv.client.ForEachMaster(func(client *redis.Client) error {
+		cmd := client.ConfigSet("notify-keyspace-events", "KA")
+
+		return cmd.Err()
+	})
 
 	return kv
 }
@@ -55,8 +60,8 @@ func TestRegister(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, kv)
 
-	if _, ok := kv.(*Redis); !ok {
-		t.Fatal("Error registering and initializing redis")
+	if _, ok := kv.(*Cluster); !ok {
+		t.Fatal("Error registering and initializing redis cluster")
 	}
 }
 
