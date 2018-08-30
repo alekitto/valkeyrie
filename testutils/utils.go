@@ -538,6 +538,7 @@ func testList(t *testing.T, kv store.Store) {
 		pairs, err := kv.List(parent, nil)
 		assert.NoError(t, err)
 		if assert.NotNil(t, pairs) {
+			fmt.Printf("%+v", pairs)
 			assert.Equal(t, 5, len(pairs))
 		}
 	}

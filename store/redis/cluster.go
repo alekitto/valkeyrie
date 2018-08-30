@@ -1,7 +1,6 @@
 package redis
 
 import (
-	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -352,7 +351,6 @@ func (r *Cluster) keys(regex string) ([]string, error) {
 		return nil, store.ErrKeyNotFound
 	}
 
-	fmt.Printf("%+v", allKeys)
 	return allKeys, nil
 }
 
